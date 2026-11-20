@@ -109,6 +109,30 @@ Key design decisions:
 
 ---
 
+## Authentication & authorization
+
+1. **Register or log in.** `POST /api/auth/register` or `POST /api/auth/login` returns a JWT access token, signed with HMAC-SHA256.
+   - The token contains the user id (subject), email and roles.
+   - It expires after `JWT_EXPIRATION`, which defaults to 1 hour.
+2. **Send the token** with every other request:
+   ```
+   Authorization: Bearer <token>
+   ```
+3. **Each request is authenticated by `JwtAuthenticationFilter`.** It checks the signature and expiry, loads the user, and puts it in the Spring Security context.
+   - The API is stateless: there is no HTTP session and no cookies, so CSRF protection is disabled.
+
+How requests are authorized:
+
+| Rule                                        | How it is enforced                                                                 |
+|---------------------------------------------|------------------------------------------------------------------------------------|
+| Everything except register/login needs a token | `SecurityFilterChain`. A missing, invalid or expired token returns 401          |
+| Only owners (or admins) change their content | `CurrentUserProvider.canModify(ownerId)` in the services. Otherwise 403           |
+| A post's author can delete comments on their post | `CommentService.deleteComment`                                              |
+| Your own data is resolved from the token   | `/me` endpoints, saved posts, blocks and notifications never take a user id from the client |
+| Role administration is admin-only          | `@PreAuthorize("hasRole('ADMIN')")` on `RoleController`                            |
+
+Passwords are stored as BCrypt hashes and never returned by the API.
+
 ## Getting started
 
 ### Prerequisites
@@ -118,9 +142,19 @@ Key design decisions:
 
 Maven doesn't need to be installed, because the `./mvnw` wrapper is included.
 
+### Database setup
+
+1. Install and start **MySQL 8**.
+2. Create a database user, or use an existing one.
+3. Point `DB_URL`, `DB_USERNAME` and `DB_PASSWORD` at it.
+
+The default URL uses `createDatabaseIfNotExist=true`, so the `RestApiDB` schema is created automatically if the user has permission to do so. Hibernate then creates or updates the tables on startup.
+
 ### Configuration
 
-All configuration is read from environment variables:
+All configuration is read from environment variables. **No secrets are stored in the repository.**
+
+[`.env.example`](.env.example) lists every variable with placeholder values. Copy it to `.env`, which Git ignores, and then either export the variables or load the file in your IDE run configuration. Spring Boot does not read `.env` files on its own.
 
 | Variable                 | Required | Default                                                                  | Description                                  |
 |--------------------------|----------|--------------------------------------------------------------------------|----------------------------------------------|
@@ -260,7 +294,7 @@ List endpoints accept `?page=0&size=10&sort=createdAt,desc`.
 |--------|-------------------------------------------|-------------------------------------|---------|
 | GET    | `/api/notifications?unreadOnly=false`     | My notifications, newest first      | 200     |
 | GET    | `/api/notifications/unread-count`         | Number of unread notifications      | 200     |
-| PATCH  | `/api/notifications/{id}/read`            | Mark one as read                    | 204     |
+| PATCH  | `/api/notifications/{notificationId}/read` | Mark one as read                   | 204     |
 | PATCH  | `/api/notifications/read-all`             | Mark all as read                    | 204     |
 
 ### Roles (admin only)
@@ -347,6 +381,8 @@ All errors use [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) problem detail
 ---
 
 ## Known limitations
+
+- **Blocking does not hide content.** Posts, comments and profiles of blocked users still appear in feeds, post lists and search results. Blocking currently removes follows in both directions and prevents following.
 
 - There is no refresh token and no server-side logout. A token stays valid until it expires.
 - The schema is managed by Hibernate `ddl-auto=update`. A production setup would use versioned migrations (Flyway or Liquibase).
