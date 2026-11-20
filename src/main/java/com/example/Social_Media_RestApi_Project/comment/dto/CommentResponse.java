@@ -1,24 +1,26 @@
 package com.example.Social_Media_RestApi_Project.comment.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.example.Social_Media_RestApi_Project.comment.entity.Comment;
+import com.example.Social_Media_RestApi_Project.user.dto.UserSummary;
 
 import java.time.Instant;
-@NoArgsConstructor
-@AllArgsConstructor
-@Getter
-public class CommentResponse {
-    private Long id;
-    @Setter
-    private String content;
-    @Setter
-    private Long post;
-    private Long userId;
-    private String userName;
-    private Instant createdAt;
-    private Instant updatedAt;
+
+public record CommentResponse(
+        Long id,
+        Long postId,
+        String content,
+        UserSummary author,
+        Instant createdAt,
+        Instant updatedAt
+) {
+    public static CommentResponse from(Comment comment) {
+        return new CommentResponse(
+                comment.getId(),
+                comment.getPost().getId(),
+                comment.getContent(),
+                UserSummary.from(comment.getAuthor()),
+                comment.getCreatedAt(),
+                comment.getUpdatedAt()
+        );
+    }
 }
-
-

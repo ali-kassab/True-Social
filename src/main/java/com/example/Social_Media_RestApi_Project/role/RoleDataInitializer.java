@@ -3,8 +3,14 @@ package com.example.Social_Media_RestApi_Project.role;
 import com.example.Social_Media_RestApi_Project.role.entity.Role;
 import com.example.Social_Media_RestApi_Project.role.repository.RoleRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
+/**
+ * Makes sure the built-in roles exist when the application starts.
+ */
+@Component
 public class RoleDataInitializer implements CommandLineRunner {
+
     private final RoleRepository roleRepository;
 
     public RoleDataInitializer(RoleRepository roleRepository) {
@@ -13,11 +19,13 @@ public class RoleDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        createRoleIfNotExists("ROLE_USER");
-        createRoleIfNotExists("ROLE_ADMIN");
+        createRoleIfMissing(Role.USER);
+        createRoleIfMissing(Role.ADMIN);
     }
 
-    private void createRoleIfNotExists(String roleName) {
-        roleRepository.findByName(roleName).orElseGet(() -> roleRepository.save(new Role(roleName)));
+    private void createRoleIfMissing(String roleName) {
+        if (!roleRepository.existsByName(roleName)) {
+            roleRepository.save(new Role(roleName));
+        }
     }
 }
