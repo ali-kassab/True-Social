@@ -1,55 +1,38 @@
 package com.example.Social_Media_RestApi_Project.post.entity;
 
+import com.example.Social_Media_RestApi_Project.common.entity.BaseEntity;
 import com.example.Social_Media_RestApi_Project.user.entity.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.*;
-
-import java.time.Instant;
 
 @Getter
 @Setter
-@Entity
 @NoArgsConstructor
+@Entity
 @Table(name = "posts")
-public class Post {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
+public class Post extends BaseEntity {
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private User author;
 
-    @Size(max = 150)
-    @NotNull
-    @Column(name = "title", nullable = false, length = 150)
+    @Column(nullable = false, length = 150)
     private String title;
 
-    @NotNull
     @Lob
-    @Column(name = "content", nullable = false)
+    @Column(nullable = false)
     private String content;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", insertable = false)
-    private Instant updatedAt;
-
-
-    public Post(User user, String title, String content) {
-        this.user = user;
+    public Post(User author, String title, String content) {
+        this.author = author;
         this.title = title;
         this.content = content;
     }

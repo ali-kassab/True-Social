@@ -1,69 +1,53 @@
 package com.example.Social_Media_RestApi_Project.user.entity;
 
+import com.example.Social_Media_RestApi_Project.common.entity.BaseEntity;
 import com.example.Social_Media_RestApi_Project.role.entity.Role;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "users")
-public class User {
+public class User extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @NotBlank(message = "name is required")
-    @Size(min = 3, max = 50, message = "name must be between 3 - 50")
     @Column(nullable = false, length = 50)
     private String name;
 
-    @NotBlank(message = "email is required")
-    @Email(message = "email not true")
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @NotBlank(message = "password is required")
-    @Size(min = 6, message = "password must be at least 6 ")
+    /** BCrypt hash - the raw password is never stored. */
     @Column(nullable = false)
     private String password;
 
+    /** Public HTTPS URL of the profile photo. */
     @Column(name = "profile_image")
     private String profileImage;
+
+    @Column(length = 160)
+    private String bio;
+
+    // Roles are few and always needed to build the security principal, so EAGER is acceptable here
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "Role_id")
+            inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
-
-    @CreatedDate
-    @Column(nullable = false,updatable = false)
-    private Instant createdAt;
-    @LastModifiedDate
-    @Column(nullable = false)
-    private Instant updatedAt;
-
-    public Set<Role> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(Set<Role> roles) {
-        this.roles = roles;
-    }
-
-    public User() {
-    }
 
     public User(String name, String email, String password) {
         this.name = name;
@@ -71,48 +55,7 @@ public class User {
         this.password = password;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setProfileImageUrl(String profileImage) {
-        this.profileImage = profileImage;
-    }
-
-    public String getProfileImage() {
-        return profileImage;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    public void addRole(Role role) {
+        roles.add(role);
     }
 }
-
