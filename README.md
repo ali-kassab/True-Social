@@ -94,9 +94,14 @@ It is an **independently built portfolio project**, not a commercial product, an
 - Created on **like, comment and follow** — never for your own actions
 - List all or unread only, unread count, mark one / all as read
 
-#### 🛡️ Administration
+#### 🛡️ Role-Based Access Control
 - `ROLE_USER` and `ROLE_ADMIN` seeded automatically at startup
 - Role management API restricted to admins via `@PreAuthorize`
+- Admins can edit or delete any post or comment
+
+#### 📄 Pagination & Sorting
+- Users, posts, comments, follows, saved posts, blocks and notifications are paginated (`page`, `size`, max 50)
+- Sorting limited to an allow-list of properties per resource
 
 </td>
 </tr>
@@ -162,25 +167,6 @@ sequenceDiagram
     end
 ```
 
-### Package structure
-
-```text
-src/main/java/com/example/Social_Media_RestApi_Project
-├── auth/            register & login (controller, service, DTOs)
-├── user/            profiles, search, password, profile photo
-├── post/            posts, likes, saved posts, feed (Post, PostLike, SavedPost)
-├── comment/         comments on posts
-├── follow/          follow / unfollow, followers & following lists
-├── block/           block / unblock users, blocked-users list
-├── notification/    in-app notifications
-├── role/            roles + startup data initializer (admin-only API)
-├── security/        SecurityConfig, JWT service & filter, UserPrincipal, CurrentUserProvider
-├── storage/         Cloudinary image upload
-├── config/          Cloudinary configuration properties
-├── exception/       custom exceptions + GlobalExceptionHandler (RFC 7807)
-└── common/          BaseEntity (id + audit timestamps), PageResponse, SortValidator
-```
-
 ### Key design decisions
 
 - **DTOs everywhere.** Entities are never serialized directly, so password hashes and private emails can't leak. Request and response DTOs are Java `record`s.
@@ -190,6 +176,39 @@ src/main/java/com/example/Social_Media_RestApi_Project
 - **Stable pagination contract.** Lists return a `PageResponse` (`content, page, size, totalElements, totalPages, first, last`). Page size is capped at 50 and sorting is restricted to an allow-list (`SortValidator`).
 - **Stateless security.** No HTTP session. The JWT subject is the user id, so changing your email doesn't invalidate your token.
 - **Secrets from the environment.** JWT secret, database credentials and Cloudinary keys are never stored in the repository.
+
+---
+
+## 📂 Project Structure
+
+```text
+True-Social
+├── src
+│   ├── main
+│   │   ├── java/com/example/Social_Media_RestApi_Project
+│   │   │   ├── auth/            register & login (controller, service, DTOs)
+│   │   │   ├── user/            profiles, search, password, profile photo
+│   │   │   ├── post/            posts, likes, saved posts, feed (Post, PostLike, SavedPost)
+│   │   │   ├── comment/         comments on posts
+│   │   │   ├── follow/          follow / unfollow, followers & following lists
+│   │   │   ├── block/           block / unblock users, blocked-users list
+│   │   │   ├── notification/    in-app notifications
+│   │   │   ├── role/            roles + startup data initializer (admin-only API)
+│   │   │   ├── security/        SecurityConfig, JWT service & filter, UserPrincipal, CurrentUserProvider
+│   │   │   ├── storage/         Cloudinary image upload
+│   │   │   ├── config/          Cloudinary configuration properties
+│   │   │   ├── exception/       custom exceptions + GlobalExceptionHandler (RFC 7807)
+│   │   │   └── common/          BaseEntity (id + audit timestamps), PageResponse, SortValidator
+│   │   └── resources/application.properties    runtime configuration (env-var driven)
+│   └── test
+│       ├── java/...                             unit + integration tests, mirrored by feature
+│       └── resources/application.properties    H2 test configuration
+├── .env.example                                 template for required environment variables
+├── pom.xml                                      Maven build and dependencies
+└── mvnw, mvnw.cmd                               Maven wrapper
+```
+
+Each feature package follows the same internal layout: `controller/`, `service/`, `repository/`, `entity/` and `dto/` (where applicable).
 
 ---
 
