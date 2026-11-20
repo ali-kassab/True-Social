@@ -14,11 +14,13 @@ import com.example.Social_Media_RestApi_Project.post.entity.Post;
 import com.example.Social_Media_RestApi_Project.post.repository.PostCountView;
 import com.example.Social_Media_RestApi_Project.post.repository.PostLikeRepository;
 import com.example.Social_Media_RestApi_Project.post.repository.PostRepository;
+import com.example.Social_Media_RestApi_Project.post.repository.SavedPostRepository;
 import com.example.Social_Media_RestApi_Project.security.CurrentUserProvider;
 import com.example.Social_Media_RestApi_Project.user.dto.UserSummary;
 import com.example.Social_Media_RestApi_Project.user.entity.User;
 import com.example.Social_Media_RestApi_Project.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final SavedPostRepository savedPostRepository;
     private final CommentRepository commentRepository;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
@@ -42,12 +45,14 @@ public class PostService {
 
     public PostService(PostRepository postRepository,
                        PostLikeRepository postLikeRepository,
+                       SavedPostRepository savedPostRepository,
                        CommentRepository commentRepository,
                        NotificationRepository notificationRepository,
                        UserRepository userRepository,
                        CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
+        this.savedPostRepository = savedPostRepository;
         this.commentRepository = commentRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
@@ -71,6 +76,13 @@ public class PostService {
             throw new ResourceNotFoundException("User", userId);
         }
         return toPageResponse(postRepository.findByAuthorId(userId, sortable(pageable)));
+    }
+
+    /** The current user's saved posts, most recently saved first (sort parameters are ignored). */
+    @Transactional(readOnly = true)
+    public PageResponse<PostResponse> getSavedPosts(Pageable pageable) {
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return toPageResponse(savedPostRepository.findSavedPosts(currentUserProvider.getCurrentUserId(), unsorted));
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +124,7 @@ public class PostService {
         // Remove dependent rows first so foreign keys never block the delete
         notificationRepository.deleteByPostId(postId);
         postLikeRepository.deleteByPostId(postId);
+        savedPostRepository.deleteByPostId(postId);
         commentRepository.deleteByPostId(postId);
         postRepository.delete(post);
     }

@@ -1,7 +1,9 @@
 package com.example.Social_Media_RestApi_Project.follow.service;
 
+import com.example.Social_Media_RestApi_Project.block.repository.BlockRepository;
 import com.example.Social_Media_RestApi_Project.common.dto.PageResponse;
 import com.example.Social_Media_RestApi_Project.exception.BadRequestException;
+import com.example.Social_Media_RestApi_Project.exception.ForbiddenException;
 import com.example.Social_Media_RestApi_Project.exception.ResourceAlreadyExistsException;
 import com.example.Social_Media_RestApi_Project.exception.ResourceNotFoundException;
 import com.example.Social_Media_RestApi_Project.follow.entity.Follow;
@@ -30,15 +32,18 @@ public class FollowService {
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
     private final NotificationService notificationService;
+    private final BlockRepository blockRepository;
 
     public FollowService(FollowRepository followRepository,
                          UserRepository userRepository,
                          CurrentUserProvider currentUserProvider,
-                         NotificationService notificationService) {
+                         NotificationService notificationService,
+                         BlockRepository blockRepository) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
         this.notificationService = notificationService;
+        this.blockRepository = blockRepository;
     }
 
     @Transactional
@@ -48,6 +53,9 @@ public class FollowService {
             throw new BadRequestException("You cannot follow yourself");
         }
         User target = getUser(targetUserId);
+        if (blockRepository.existsBetween(currentUserId, targetUserId)) {
+            throw new ForbiddenException("You cannot follow this user");
+        }
         if (followRepository.existsByFollowerIdAndFollowingId(currentUserId, targetUserId)) {
             throw new ResourceAlreadyExistsException("You already follow this user");
         }

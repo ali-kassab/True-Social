@@ -246,6 +246,74 @@ class SocialApiIntegrationTest {
                 .andExpect(jsonPath("$.content[0].name").value("Searchable " + marker));
     }
 
+    // ---------- saved posts ----------
+
+    @Test
+    void savedPosts_saveListUnsaveAndPostDeletion() throws Exception {
+        String author = registerAndLogin("Saved Author");
+        String reader = registerAndLogin("Saved Reader");
+        long first = createPost(author, "First saved", "Content 1");
+        long second = createPost(author, "Second saved", "Content 2");
+
+        mockMvc.perform(auth(post("/api/posts/" + first + "/save"), reader)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(post("/api/posts/" + second + "/save"), reader)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(post("/api/posts/" + first + "/save"), reader)).andExpect(status().isConflict());
+        mockMvc.perform(auth(post("/api/posts/999999/save"), reader)).andExpect(status().isNotFound());
+
+        // most recently saved first; another user's saved list is unaffected
+        mockMvc.perform(auth(get("/api/users/me/saved-posts"), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].id").value(second))
+                .andExpect(jsonPath("$.content[0].author.name").value("Saved Author"));
+        mockMvc.perform(auth(get("/api/users/me/saved-posts"), author))
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(auth(delete("/api/posts/" + second + "/save"), reader)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(delete("/api/posts/" + second + "/save"), reader)).andExpect(status().isNotFound());
+
+        // deleting a saved post also removes it from saved lists
+        mockMvc.perform(auth(delete("/api/posts/" + first), author)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(get("/api/users/me/saved-posts"), reader))
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(get("/api/users/me/saved-posts")).andExpect(status().isUnauthorized());
+    }
+
+    // ---------- blocking ----------
+
+    @Test
+    void blockUnblock_removesFollowsAndPreventsFollowing() throws Exception {
+        String alice = registerAndLogin("Blocking Alice");
+        String bob = registerAndLogin("Blocked Bob");
+        long aliceId = currentUserId(alice);
+        long bobId = currentUserId(bob);
+
+        mockMvc.perform(auth(post("/api/users/" + aliceId + "/follow"), bob)).andExpect(status().isNoContent());
+
+        mockMvc.perform(auth(post("/api/users/" + bobId + "/block"), alice)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(post("/api/users/" + bobId + "/block"), alice)).andExpect(status().isConflict());
+        mockMvc.perform(auth(post("/api/users/" + aliceId + "/block"), alice)).andExpect(status().isBadRequest());
+
+        mockMvc.perform(auth(get("/api/users/me/blocked"), alice))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Blocked Bob"));
+
+        // the existing follow was removed and neither user can follow the other while blocked
+        mockMvc.perform(auth(get("/api/users/" + aliceId), bob))
+                .andExpect(jsonPath("$.followersCount").value(0));
+        mockMvc.perform(auth(post("/api/users/" + aliceId + "/follow"), bob)).andExpect(status().isForbidden());
+        mockMvc.perform(auth(post("/api/users/" + bobId + "/follow"), alice)).andExpect(status().isForbidden());
+
+        // only the blocker can remove the block
+        mockMvc.perform(auth(delete("/api/users/" + aliceId + "/block"), bob)).andExpect(status().isNotFound());
+        mockMvc.perform(auth(delete("/api/users/" + bobId + "/block"), alice)).andExpect(status().isNoContent());
+        mockMvc.perform(auth(get("/api/users/me/blocked"), alice))
+                .andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(auth(post("/api/users/" + aliceId + "/follow"), bob)).andExpect(status().isNoContent());
+    }
+
     // ---------- account settings ----------
 
     @Test

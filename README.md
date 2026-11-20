@@ -52,6 +52,8 @@ The project focuses on solid backend fundamentals: a layered architecture, DTOs,
 
 **Likes, comments, follows**
 - Like and unlike posts. A user can like a post only once, enforced by a database unique constraint.
+- **Save posts** to a private saved list (bookmarks), remove them, and list them most-recently-saved first. A post can be saved only once per user, and deleting a post removes it from every saved list.
+- **Block users.** Blocking removes any follow relationship in both directions, and neither user can follow the other while the block exists. You can't block yourself or block someone twice. Unblock, and list the users you've blocked. Blocking does not hide content from feeds or lists.
 - Comment CRUD with pagination.
   - The comment author edits their comment.
   - The comment author, the post author or an admin can delete it.
@@ -82,9 +84,10 @@ Controller  ->  Service  ->  Repository  ->  MySQL
 src/main/java/com/example/Social_Media_RestApi_Project
 ├── auth/            register & login (controller, service, DTOs)
 ├── user/            profiles, search, password, profile photo
-├── post/            posts, likes, feed (entities Post & PostLike)
+├── post/            posts, likes, saved posts, feed (entities Post, PostLike & SavedPost)
 ├── comment/         comments on posts
 ├── follow/          follow / unfollow, followers & following lists
+├── block/           block / unblock users, blocked-users list
 ├── notification/    in-app notifications
 ├── role/            roles + startup data initializer (admin-only API)
 ├── security/        SecurityConfig, JWT service & filter, UserPrincipal, CurrentUserProvider
@@ -171,7 +174,9 @@ The tests need **no MySQL server**. They run against an in-memory H2 database in
 | `PostServiceTest`                | unit (Mockito)               | author taken from the token, ownership checks, partial update, cascading delete |
 | `PostLikeServiceTest`            | unit                         | like / unlike, duplicate like, notification                                     |
 | `CommentServiceTest`             | unit                         | comment ownership (regression test for the old inverted check), post-author moderation |
-| `FollowServiceTest`              | unit                         | follow / unfollow rules, self-follow, duplicates                                |
+| `FollowServiceTest`              | unit                         | follow / unfollow rules, self-follow, duplicates, blocked users                 |
+| `SavedPostServiceTest`           | unit                         | save / unsave, duplicate saves, missing posts                                   |
+| `BlockServiceTest`               | unit                         | block / unblock, self-block, duplicates, follows removed on block               |
 | `UserServiceTest`                | unit                         | profile privacy, profile update, password change rules                          |
 | `AuthServiceTest`                | unit                         | registration: hashing, default role, duplicate email                            |
 | `NotificationServiceTest`        | unit                         | no self-notifications, users can only read their own notifications             |
@@ -219,6 +224,9 @@ List endpoints accept `?page=0&size=10&sort=createdAt,desc`.
 | DELETE | `/api/users/{userId}/follow`     | Unfollow a user                                    | 204     |
 | GET    | `/api/users/{userId}/followers`  | Followers                                          | 200     |
 | GET    | `/api/users/{userId}/following`  | Users followed                                     | 200     |
+| POST   | `/api/users/{userId}/block`      | Block a user                                       | 204     |
+| DELETE | `/api/users/{userId}/block`      | Unblock a user                                     | 204     |
+| GET    | `/api/users/me/blocked`          | Users I have blocked                               | 200     |
 
 ### Posts & likes
 
@@ -232,6 +240,9 @@ List endpoints accept `?page=0&size=10&sort=createdAt,desc`.
 | DELETE | `/api/posts/{postId}`        | Delete a post and its comments, likes and notifications (author or admin) | 204 |
 | POST   | `/api/posts/{postId}/like`   | Like a post                                       | 204     |
 | DELETE | `/api/posts/{postId}/like`   | Remove a like                                     | 204     |
+| POST   | `/api/posts/{postId}/save`   | Save a post                                       | 204     |
+| DELETE | `/api/posts/{postId}/save`   | Remove a post from my saved list                  | 204     |
+| GET    | `/api/users/me/saved-posts`  | My saved posts, most recently saved first         | 200     |
 
 ### Comments
 
@@ -327,9 +338,9 @@ All errors use [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) problem detail
 |--------|-----------------------------------------------------------------------------|
 | 400    | Validation errors, malformed JSON, business-rule violations, unsupported sort |
 | 401    | Missing, invalid or expired token, or wrong login credentials               |
-| 403    | Modifying someone else's resource, or a missing role                        |
+| 403    | Modifying someone else's resource, a missing role, or following a blocked user |
 | 404    | Resource not found                                                          |
-| 409    | Duplicate email, duplicate like or follow, existing role                    |
+| 409    | Duplicate email, duplicate like, follow, save or block, existing role       |
 | 413    | Uploaded file too large                                                     |
 | 502    | Image storage unavailable or not configured                                 |
 

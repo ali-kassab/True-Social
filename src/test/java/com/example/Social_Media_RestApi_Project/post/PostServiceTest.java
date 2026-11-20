@@ -11,6 +11,7 @@ import com.example.Social_Media_RestApi_Project.post.dto.UpdatePostRequest;
 import com.example.Social_Media_RestApi_Project.post.entity.Post;
 import com.example.Social_Media_RestApi_Project.post.repository.PostLikeRepository;
 import com.example.Social_Media_RestApi_Project.post.repository.PostRepository;
+import com.example.Social_Media_RestApi_Project.post.repository.SavedPostRepository;
 import com.example.Social_Media_RestApi_Project.post.service.PostService;
 import com.example.Social_Media_RestApi_Project.security.CurrentUserProvider;
 import com.example.Social_Media_RestApi_Project.support.TestData;
@@ -44,6 +45,7 @@ class PostServiceTest {
 
     @Mock private PostRepository postRepository;
     @Mock private PostLikeRepository postLikeRepository;
+    @Mock private SavedPostRepository savedPostRepository;
     @Mock private CommentRepository commentRepository;
     @Mock private NotificationRepository notificationRepository;
     @Mock private UserRepository userRepository;
@@ -128,6 +130,7 @@ class PostServiceTest {
 
         verify(notificationRepository).deleteByPostId(10L);
         verify(postLikeRepository).deleteByPostId(10L);
+        verify(savedPostRepository).deleteByPostId(10L);
         verify(commentRepository).deleteByPostId(10L);
         verify(postRepository).delete(post);
     }

@@ -6,6 +6,7 @@ import com.example.Social_Media_RestApi_Project.post.dto.PostResponse;
 import com.example.Social_Media_RestApi_Project.post.dto.UpdatePostRequest;
 import com.example.Social_Media_RestApi_Project.post.service.PostLikeService;
 import com.example.Social_Media_RestApi_Project.post.service.PostService;
+import com.example.Social_Media_RestApi_Project.post.service.SavedPostService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,10 +32,13 @@ public class PostController {
 
     private final PostService postService;
     private final PostLikeService postLikeService;
+    private final SavedPostService savedPostService;
 
-    public PostController(PostService postService, PostLikeService postLikeService) {
+    public PostController(PostService postService, PostLikeService postLikeService,
+                          SavedPostService savedPostService) {
         this.postService = postService;
         this.postLikeService = postLikeService;
+        this.savedPostService = savedPostService;
     }
 
     /** All posts, newest first by default. Supports {@code ?page=&size=&sort=createdAt,desc}. */
@@ -92,5 +96,23 @@ public class PostController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unlikePost(@PathVariable Long postId) {
         postLikeService.unlikePost(postId);
+    }
+
+    @PostMapping("/posts/{postId}/save")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void savePost(@PathVariable Long postId) {
+        savedPostService.savePost(postId);
+    }
+
+    @DeleteMapping("/posts/{postId}/save")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unsavePost(@PathVariable Long postId) {
+        savedPostService.unsavePost(postId);
+    }
+
+    /** The current user's saved posts, most recently saved first. */
+    @GetMapping("/users/me/saved-posts")
+    public PageResponse<PostResponse> getSavedPosts(@PageableDefault(size = 10) Pageable pageable) {
+        return postService.getSavedPosts(pageable);
     }
 }

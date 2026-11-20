@@ -1,6 +1,8 @@
 package com.example.Social_Media_RestApi_Project.follow;
 
+import com.example.Social_Media_RestApi_Project.block.repository.BlockRepository;
 import com.example.Social_Media_RestApi_Project.exception.BadRequestException;
+import com.example.Social_Media_RestApi_Project.exception.ForbiddenException;
 import com.example.Social_Media_RestApi_Project.exception.ResourceAlreadyExistsException;
 import com.example.Social_Media_RestApi_Project.exception.ResourceNotFoundException;
 import com.example.Social_Media_RestApi_Project.follow.entity.Follow;
@@ -36,6 +38,7 @@ class FollowServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationService notificationService;
+    @Mock private BlockRepository blockRepository;
 
     @InjectMocks private FollowService followService;
 
@@ -81,6 +84,15 @@ class FollowServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> followService.follow(2L)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void follow_whenBlocked_isForbidden() {
+        when(userRepository.findById(2L)).thenReturn(Optional.of(target));
+        when(blockRepository.existsBetween(1L, 2L)).thenReturn(true);
+
+        assertThatThrownBy(() -> followService.follow(2L)).isInstanceOf(ForbiddenException.class);
+        verify(followRepository, never()).save(any());
     }
 
     @Test
